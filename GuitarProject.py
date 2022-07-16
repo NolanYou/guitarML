@@ -10,6 +10,7 @@ import matplotlib
 import numpy as np
 import matplotlib.pyplot as plt
 import IPython.display
+from keras.callbacks import ModelCheckpoint
 from sklearn.model_selection import train_test_split
 from keras.utils import to_categorical
 import IPython.display as ipd
@@ -35,67 +36,66 @@ def make_normalize_mfccs(file_string):
     mfccs = librosa.feature.mfcc(y=audio_data, sr=sample_rate, n_mfcc=50)
     #to summarize, we are taking 50 mfcc samples (slices) of our audio
     mfccs_avged = np.mean(mfccs.T, axis=0)
-    print(np.shape(mfccs.T))
     #axis = 0 tells us we are averaging down the rows
     return mfccs_avged
 
-make_normalize_mfccs(file_name)
-
-
-def get_data(folder_path):
+def get_data():
     #todo: implement
-    mfccs = np.array()
+    mfccs = []
     y_data_noncat = []
-    distort_folder_audios = None
-    reverb_folder_audios = None
-    clean_folder_audios = None
+    distort_folder_audios = os.scandir('CleanAudios')
+    clean_folder_audios = os.scandir('DistortedAudios')
+    # reverb_folder_audios
 
     for i in distort_folder_audios:
         mfccs.append(make_normalize_mfccs(i))
-        y_data_noncat.append("")
+        y_data_noncat.append(0)
         
-    for j in reverb_folder_audios:
-        mfccs.append(make_normalize_mfccs(j))
-        y_data_noncat.append(1)
+    # for j in reverb_folder_audios:
+    #     mfccs.append(make_normalize_mfccs(j))
+    #     y_data_noncat.append(1)
     
-    for k in clean_folder_audios():
+    for k in clean_folder_audios:
         mfccs.append(make_normalize_mfccs(k))
         y_data_noncat.append(2)
-        
+    mfccs = np.array(mfccs)
+
     return  mfccs, to_categorical(y_data_noncat)
 
 def run():
-    X_train, X_test, Y_train, Y_test = train_test_split(get_data(""))
+    t1,t2= get_data()
+    print(get_data())
+    x_train, x_test, y_train, y_test = train_test_split(t1,t2, test_size=0.33)
 
     model = Sequential()
 
     model.add(Dense(100, activation="relu", input_shape = (50,)))
-    model.add(Dropout(0.1))
+    model.add(Dropout(0.2))
 
-    model.add(Dense(400, activation= "relu", input_shape = (50,)))
-    model.add(Activation('relu'))
-    model.add(Dropout(0.1))
+    model.add(Dense(400, activation= "relu"))
 
-    model.add(Dense(400, activation="relu", input_shape=(50,)))
-    model.add(Activation('relu'))
-    model.add(Dropout(0.1))
+    model.add(Dense(20, activation = "relu"))
 
-    model.add(Dense(3), activation = "softmax")
+    model.add(Dense(400, activation="relu"))
+
+    model.add(Dense(3, activation= "softmax"))
 
     model.compile(loss='categorical_crossentropy',metrics=['accuracy'],optimizer='adam')
 
-    num_epochs = 150
-    num_batch_size = 24
+    num_epochs = 1500
+    num_batch_size = 12
 
-
-    save_location = ""
+#pointer to the path where we store our weights
+    checkpointer = ModelCheckpoint(filepath='audio_classification_weights.hdf5',
+                                   verbose=1, save_best_only=True)
     #save location should be a file in hdf5
-    model.fit(X_train, Y_train, batch_size=num_batch_size, epochs=num_epochs, validation_data=(X_test, Y_test),
-              callbacks=[save_location], verbose=1)
 
-    test_accuracy = model.evaluate(X_test, Y_test, verbose=0)
+    model.fit(x_train, y_train, batch_size=num_batch_size, epochs=num_epochs, validation_data=(x_test, y_test),
+              callbacks=[checkpointer], verbose=1)
 
+    test_accuracy = model.evaluate(x_test, y_test, verbose=0)
 
+run()
 
 
 
